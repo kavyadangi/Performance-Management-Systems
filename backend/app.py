@@ -205,6 +205,153 @@ def analyze_data():
             'message': f'Analysis failed: {str(e)}'
         }), 500
 
+@app.route('/api/upload-and-analyze', methods=['POST'])
+def upload_and_analyze():
+    """Upload a CSV file and analyze it for anomalies in a single request."""
+    try:
+        # Check if file is present
+        if 'file' not in request.files:
+            return jsonify({
+                'success': False,
+                'message': 'No file provided'
+            }), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({
+                'success': False,
+                'message': 'No file selected'
+            }), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({
+                'success': False,
+                'message': 'Invalid file type. Please upload a CSV, XLS, or XLSX file.'
+            }), 400
+        
+        # Get analysis parameters from form data
+        contamination = float(request.form.get('contamination', 0.1))
+        random_state = int(request.form.get('randomState', 42))
+        
+        # Save file
+        filename = secure_filename(file.filename)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"{timestamp}_{filename}"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        
+        logger.info(f"File uploaded and starting analysis: {filename}")
+        
+        # Run analysis
+        start_time = datetime.now()
+        
+        system = AnomalyDetectionSystem(
+            contamination=contamination,
+            random_state=random_state
+        )
+        
+        output_filename = f"results_{filename}"
+        output_filepath = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
+        
+        system.process_data(filepath, output_filepath)
+        
+        end_time = datetime.now()
+        processing_time = (end_time - start_time).total_seconds()
+        
+        # Load results and process for frontend
+        results_data = pd.read_csv(output_filepath)
+        processed_results = process_analysis_result(results_data, processing_time)
+        
+        logger.info(f"Upload and analysis completed: {filename} in {processing_time:.2f}s")
+        
+        return jsonify(processed_results)
+        
+    except Exception as e:
+        logger.error(f"Upload and analysis error: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'Upload and analysis failed: {str(e)}'
+        }), 500
+
+@app.route('/api/upload-and-analyze-summary', methods=['POST'])
+def upload_and_analyze_summary():
+    """Upload a CSV file and analyze it for anomalies, returning only summary statistics."""
+    try:
+        # Check if file is present
+        if 'file' not in request.files:
+            return jsonify({
+                'success': False,
+                'message': 'No file provided'
+            }), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({
+                'success': False,
+                'message': 'No file selected'
+            }), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({
+                'success': False,
+                'message': 'Invalid file type. Please upload a CSV, XLS, or XLSX file.'
+            }), 400
+        
+        # Get analysis parameters from form data
+        contamination = float(request.form.get('contamination', 0.1))
+        random_state = int(request.form.get('randomState', 42))
+        
+        # Save file
+        filename = secure_filename(file.filename)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"{timestamp}_{filename}"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        
+        logger.info(f"File uploaded and starting analysis (summary): {filename}")
+        
+        # Run analysis
+        start_time = datetime.now()
+        
+        system = AnomalyDetectionSystem(
+            contamination=contamination,
+            random_state=random_state
+        )
+        
+        output_filename = f"results_{filename}"
+        output_filepath = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
+        
+        system.process_data(filepath, output_filepath)
+        
+        end_time = datetime.now()
+        processing_time = (end_time - start_time).total_seconds()
+        
+        # Load results and process for frontend (summary only)
+        results_data = pd.read_csv(output_filepath)
+        processed_results = process_analysis_result(results_data, processing_time)
+        
+        # Return only summary data (much smaller response)
+        summary_response = {
+            'success': True,
+            'filename': filename,
+            'processingTime': processed_results['processingTime'],
+            'summary': processed_results['summary'],
+            'message': 'Analysis completed successfully. Use /api/download/{filename} to get full results.'
+        }
+        
+        logger.info(f"Upload and analysis (summary) completed: {filename} in {processing_time:.2f}s")
+        
+        return jsonify(summary_response)
+        
+    except Exception as e:
+        logger.error(f"Upload and analysis (summary) error: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'Upload and analysis failed: {str(e)}'
+        }), 500
+
 @app.route('/api/download/<filename>', methods=['GET'])
 def download_results(filename):
     """Download analysis results."""

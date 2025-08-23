@@ -24,6 +24,9 @@ const AnomalyChart: React.FC<AnomalyChartProps> = ({
   onTimeRangeSelect,
 }) => {
   const chartData = useMemo(() => {
+    if (!data || !Array.isArray(data)) {
+      return [];
+    }
     return data.map((item, index) => ({
       time: new Date(item.Time).toLocaleString(),
       score: item.Abnormality_score,
@@ -76,6 +79,22 @@ const AnomalyChart: React.FC<AnomalyChartProps> = ({
     const date = new Date(tickItem);
     return date.toLocaleDateString();
   };
+
+  if (!data || data.length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="mb-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Anomaly Score Timeline</h3>
+          <p className="text-sm text-gray-500">
+            Visualizing anomaly scores over time. Higher scores indicate more anomalous data points.
+          </p>
+        </div>
+        <div className="h-96 flex items-center justify-center">
+          <p className="text-gray-500">No data available for visualization.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">

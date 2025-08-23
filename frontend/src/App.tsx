@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Activity, Upload, BarChart3, Table, Download, AlertCircle } from 'lucide-react';
@@ -10,7 +10,7 @@ import AnomalyChart from './components/AnomalyChart';
 import DataTable from './components/DataTable';
 
 import { AnalysisResult, ProcessingStatus } from './types';
-import { uploadFile, analyzeData, downloadResults } from './services/api';
+import { uploadFile, analyzeData, downloadResults, uploadAndAnalyze, uploadAndAnalyzeSummary } from './services/api';
 
 function App() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -21,86 +21,76 @@ function App() {
   const [randomState, setRandomState] = useState(42);
   const [activeTab, setActiveTab] = useState<'upload' | 'results'>('upload');
 
+  // Debug effect to monitor analysisResult changes
+  useEffect(() => {
+    console.log('analysisResult state changed:', analysisResult);
+  }, [analysisResult]);
+
   const handleFileSelect = useCallback(async (file: File) => {
     setUploadedFile(file);
     setIsUploading(true);
-    setProcessingStatus({ status: 'uploading', message: 'Uploading file...' });
+    setProcessingStatus({ status: 'uploading', message: 'Uploading and analyzing file...' });
 
     try {
-      const response = await uploadFile(file);
-      if (response.success) {
-        toast.success('File uploaded successfully!');
-        setProcessingStatus({ status: 'idle' });
-      } else {
-        throw new Error(response.message);
-      }
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast.error('Failed to upload file. Please try again.');
-      setProcessingStatus({ status: 'error', message: 'Upload failed' });
-    } finally {
-      setIsUploading(false);
-    }
-  }, []);
-
-  const handleAnalyze = useCallback(async () => {
-    if (!uploadedFile) {
-      toast.error('Please upload a file first.');
-      return;
-    }
-
-    setProcessingStatus({ status: 'processing', message: 'Analyzing data...', progress: 0 });
-    
-    try {
-      // Simulate progress updates
-      const progressInterval = setInterval(() => {
-        setProcessingStatus(prev => ({
-          ...prev,
-          progress: Math.min((prev.progress || 0) + 10, 90)
-        }));
-      }, 500);
-
-      const result = await analyzeData({
-        filename: uploadedFile.name,
-        contamination,
-        randomState,
-      });
-
-      clearInterval(progressInterval);
+      const result = await uploadAndAnalyzeSummary(file, contamination, randomState);
+      console.log('Upload and analysis summary result:', result); // Debug log
       
-      setAnalysisResult(result);
+      // Check if the response was successful
+      if (!result.success) {
+        throw new Error(result.message || 'Analysis failed');
+      }
+      
+      // Convert summary response to AnalysisResult format
+      const analysisResult: AnalysisResult = {
+        data: [], // Empty array since we only have summary
+        summary: result.summary,
+        processingTime: result.processingTime
+      };
+      
+      console.log('Setting analysis result:', analysisResult); // Debug log
+      setAnalysisResult(analysisResult);
+      console.log('Analysis result set, switching to results tab'); // Debug log
       setProcessingStatus({ status: 'completed', message: 'Analysis completed!', progress: 100 });
       setActiveTab('results');
       
-      toast.success('Analysis completed successfully!');
+      toast.success('File uploaded and analyzed successfully!');
       
       // Reset progress after a delay
       setTimeout(() => {
         setProcessingStatus({ status: 'idle' });
       }, 2000);
-
+      
     } catch (error) {
-      console.error('Analysis error:', error);
-      toast.error('Analysis failed. Please try again.');
-      setProcessingStatus({ status: 'error', message: 'Analysis failed' });
+      console.error('Upload and analysis error:', error);
+      toast.error('Failed to upload and analyze file. Please try again.');
+      setProcessingStatus({ status: 'error', message: 'Upload and analysis failed' });
+    } finally {
+      setIsUploading(false);
     }
-  }, [uploadedFile, contamination, randomState]);
+  }, [contamination, randomState]);
+
+
 
   const handleDownloadResults = useCallback(async () => {
     if (!analysisResult) return;
 
     try {
-      const blob = await downloadResults('anomaly_results.csv');
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'anomaly_results.csv';
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      // For summary results, we need to get the filename from the backend
+      // For now, let's show a message that full results can be downloaded via API
+      toast.info('Full results can be downloaded using the API endpoint: /api/download/{filename}');
       
-      toast.success('Results downloaded successfully!');
+      // If we have the filename, we could construct the download URL
+      // const blob = await downloadResults('anomaly_results.csv');
+      // const url = window.URL.createObjectURL(blob);
+      // const a = document.createElement('a');
+      // a.href = url;
+      // a.download = 'anomaly_results.csv';
+      // document.body.appendChild(a);
+      // a.click();
+      // window.URL.revokeObjectURL(url);
+      // document.body.removeChild(a);
+      
+      // toast.success('Results downloaded successfully!');
     } catch (error) {
       console.error('Download error:', error);
       toast.error('Failed to download results.');
@@ -112,62 +102,89 @@ function App() {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center space-x-2 mb-4">
           <Upload className="h-5 w-5 text-gray-600" />
-          <h2 className="text-xl font-semibold text-gray-900">Upload Data</h2>
+          <h2 className="text-xl font-semibold text-gray-900">Upload & Analyze Data</h2>
         </div>
         <p className="text-gray-600 mb-6">
-          Upload your CSV file containing time series data. The system will analyze the data for anomalies
+          Upload your CSV file containing time series data. The system will automatically analyze the data for anomalies
           and provide detailed insights with feature attribution.
         </p>
-        <FileUpload
-          onFileSelect={handleFileSelect}
-          isUploading={isUploading}
-          uploadedFile={uploadedFile || undefined}
-        />
-      </div>
-
-      {uploadedFile && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <h4 className="font-medium text-blue-900 mb-2">API Endpoints:</h4>
+          <ul className="text-sm text-blue-800 space-y-1">
+            <li>• <code className="bg-blue-100 px-1 rounded">POST /api/upload-and-analyze-summary</code> - Summary results only (recommended)</li>
+            <li>• <code className="bg-blue-100 px-1 rounded">POST /api/upload-and-analyze</code> - Full results with all data points</li>
+            <li>• <code className="bg-blue-100 px-1 rounded">GET /api/download/{'{filename}'}</code> - Download full results CSV</li>
+          </ul>
+          <div className="mt-4 pt-4 border-t border-blue-200">
+            <button
+              onClick={() => {
+                console.log('Current analysisResult state:', analysisResult);
+                console.log('Current activeTab:', activeTab);
+              }}
+              className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 mr-2"
+            >
+              Debug State
+            </button>
+            <button
+              onClick={() => {
+                const testResult = {
+                  data: [],
+                  summary: {
+                    totalRows: 26400,
+                    scoreRange: { min: 0, max: 100 },
+                    scoreDistribution: {
+                      normal: 2650,
+                      slight: 5271,
+                      moderate: 7920,
+                      significant: 7920,
+                      severe: 2639
+                    },
+                    trainingPeriodStats: { mean: 32.78, max: 81.68 },
+                    topFeatures: [
+                      { feature: "ReactorPressurekPagauge", count: 8651 },
+                      { feature: "ReactorCoolingWaterFlow", count: 8050 }
+                    ]
+                  },
+                  processingTime: 6.99
+                };
+                setAnalysisResult(testResult);
+                setActiveTab('results');
+                toast.success('Test data loaded!');
+              }}
+              className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+            >
+              Load Test Data
+            </button>
+          </div>
+        </div>
+        
         <AnalysisSettings
           contamination={contamination}
           randomState={randomState}
           onContaminationChange={setContamination}
           onRandomStateChange={setRandomState}
         />
-      )}
-
-      {uploadedFile && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-medium text-gray-900">Ready to Analyze</h3>
-              <p className="text-sm text-gray-500">
-                File uploaded: {uploadedFile.name} ({(uploadedFile.size / 1024 / 1024).toFixed(2)} MB)
-              </p>
-            </div>
-            <button
-              onClick={handleAnalyze}
-              disabled={processingStatus.status === 'processing'}
-              className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {processingStatus.status === 'processing' ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>Analyzing...</span>
-                </>
-              ) : (
-                <>
-                  <Activity className="h-4 w-4" />
-                  <span>Start Analysis</span>
-                </>
-              )}
-            </button>
-          </div>
+        
+        <div className="mt-6">
+          <FileUpload
+            onFileSelect={handleFileSelect}
+            isUploading={isUploading}
+            uploadedFile={uploadedFile || undefined}
+          />
         </div>
-      )}
+      </div>
     </div>
   );
 
   const renderResultsSection = () => {
-    if (!analysisResult) return null;
+    console.log('renderResultsSection called, analysisResult:', analysisResult); // Debug log
+    
+    if (!analysisResult) {
+      console.log('No analysis result available');
+      return null;
+    }
+
+    console.log('Rendering results with:', analysisResult); // Debug log
 
     return (
       <div className="space-y-6">
@@ -189,12 +206,35 @@ function App() {
           <ResultsSummary result={analysisResult} />
         </div>
 
-        <AnomalyChart data={analysisResult.data} />
-
-        <DataTable 
-          data={analysisResult.data} 
-          onDownload={handleDownloadResults}
-        />
+        {analysisResult.data && analysisResult.data.length > 0 ? (
+          <>
+            <AnomalyChart data={analysisResult.data} />
+            <DataTable 
+              data={analysisResult.data} 
+              onDownload={handleDownloadResults}
+            />
+          </>
+        ) : (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="text-center">
+              <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Summary View Only</h3>
+              <p className="text-gray-500 mb-4">
+                This analysis shows summary statistics only. For detailed data visualization and charts, 
+                use the full analysis endpoint.
+              </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-medium text-blue-900 mb-2">Key Insights:</h4>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• Total data points analyzed: {analysisResult.summary?.totalRows?.toLocaleString()}</li>
+                  <li>• Processing time: {(analysisResult.processingTime || 0).toFixed(2)} seconds</li>
+                  <li>• Score range: {analysisResult.summary?.scoreRange?.min?.toFixed(2)} - {analysisResult.summary?.scoreRange?.max?.toFixed(2)}</li>
+                  <li>• Top contributing features identified</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };

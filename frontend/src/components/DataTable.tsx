@@ -8,6 +8,14 @@ interface DataTableProps {
 }
 
 const DataTable: React.FC<DataTableProps> = ({ data, onDownload }) => {
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <p className="text-gray-500">No data available for display.</p>
+      </div>
+    );
+  }
+
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<keyof AnomalyData>('Time');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');

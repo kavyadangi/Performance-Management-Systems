@@ -7,6 +7,14 @@ interface ResultsSummaryProps {
 }
 
 const ResultsSummary: React.FC<ResultsSummaryProps> = ({ result }) => {
+  if (!result || !result.summary) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <p className="text-gray-500">No analysis results available.</p>
+      </div>
+    );
+  }
+  
   const { summary } = result;
   
   const getScoreCategoryColor = (score: number) => {
@@ -43,15 +51,15 @@ const ResultsSummary: React.FC<ResultsSummaryProps> = ({ result }) => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="text-center">
-            <p className="text-2xl font-bold text-blue-600">{result.processingTime.toFixed(2)}s</p>
+            <p className="text-2xl font-bold text-blue-600">{(result.processingTime || 0).toFixed(2)}s</p>
             <p className="text-sm text-gray-500">Processing Time</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-gray-900">{summary.totalRows.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-gray-900">{(summary.totalRows || 0).toLocaleString()}</p>
             <p className="text-sm text-gray-500">Data Points Analyzed</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-gray-900">{summary.topFeatures.length}</p>
+            <p className="text-2xl font-bold text-gray-900">{(summary.topFeatures || []).length}</p>
             <p className="text-sm text-gray-500">Unique Features</p>
           </div>
         </div>
@@ -66,11 +74,11 @@ const ResultsSummary: React.FC<ResultsSummaryProps> = ({ result }) => {
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {[
-              { label: 'Normal', count: summary.scoreDistribution.normal, range: '0-10' },
-              { label: 'Slight', count: summary.scoreDistribution.slight, range: '11-30' },
-              { label: 'Moderate', count: summary.scoreDistribution.moderate, range: '31-60' },
-              { label: 'Significant', count: summary.scoreDistribution.significant, range: '61-90' },
-              { label: 'Severe', count: summary.scoreDistribution.severe, range: '91-100' },
+              { label: 'Normal', count: summary.scoreDistribution?.normal || 0, range: '0-10' },
+              { label: 'Slight', count: summary.scoreDistribution?.slight || 0, range: '11-30' },
+              { label: 'Moderate', count: summary.scoreDistribution?.moderate || 0, range: '31-60' },
+              { label: 'Significant', count: summary.scoreDistribution?.significant || 0, range: '61-90' },
+              { label: 'Severe', count: summary.scoreDistribution?.severe || 0, range: '91-100' },
             ].map((category) => (
               <div key={category.label} className="text-center p-4 rounded-lg border">
                 <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium mb-2 ${
@@ -88,7 +96,7 @@ const ResultsSummary: React.FC<ResultsSummaryProps> = ({ result }) => {
                 <p className="text-2xl font-bold text-gray-900">{category.count.toLocaleString()}</p>
                 <p className="text-sm text-gray-500">{category.range}</p>
                 <p className="text-xs text-gray-400">
-                  {((category.count / summary.totalRows) * 100).toFixed(1)}%
+                  {((category.count / (summary.totalRows || 1)) * 100).toFixed(1)}%
                 </p>
               </div>
             ))}
