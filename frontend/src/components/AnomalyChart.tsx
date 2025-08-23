@@ -41,13 +41,7 @@ const AnomalyChart: React.FC<AnomalyChartProps> = ({
     return 'severe';
   };
 
-  const getScoreColor = (score: number) => {
-    if (score <= 10) return '#22c55e'; // green
-    if (score <= 30) return '#3b82f6'; // blue
-    if (score <= 60) return '#f59e0b'; // yellow
-    if (score <= 90) return '#f97316'; // orange
-    return '#ef4444'; // red
-  };
+
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -135,24 +129,7 @@ const AnomalyChart: React.FC<AnomalyChartProps> = ({
               dataKey="score"
               stroke="#3b82f6"
               strokeWidth={2}
-              dot={(props) => {
-                const { cx, cy, payload } = props;
-                if (!cx || !cy) return null;
-                
-                const color = getScoreColor(payload.score);
-                const radius = payload.score > 60 ? 4 : 2;
-                
-                return (
-                  <circle
-                    cx={cx}
-                    cy={cy}
-                    r={radius}
-                    fill={color}
-                    stroke="white"
-                    strokeWidth={1}
-                  />
-                );
-              }}
+              dot={{ fill: "#3b82f6", strokeWidth: 1, r: 2 }}
             />
           </LineChart>
         </ResponsiveContainer>

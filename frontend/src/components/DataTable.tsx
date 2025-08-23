@@ -101,7 +101,7 @@ const DataTable: React.FC<DataTableProps> = ({ data, onDownload }) => {
               className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Scores</option>
-              <option value="high">High Anomalies (>60)</option>
+              <option value="high">High Anomalies (&gt;60)</option>
               <option value="moderate">Moderate (31-60)</option>
               <option value="low">Low (≤30)</option>
             </select>

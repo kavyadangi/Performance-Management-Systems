@@ -121,7 +121,7 @@ function App() {
         <FileUpload
           onFileSelect={handleFileSelect}
           isUploading={isUploading}
-          uploadedFile={uploadedFile}
+          uploadedFile={uploadedFile || undefined}
         />
       </div>
 
