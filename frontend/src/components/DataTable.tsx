@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Download, Filter, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import { AnomalyData } from '../types';
 
 interface DataTableProps {
@@ -8,14 +8,6 @@ interface DataTableProps {
 }
 
 const DataTable: React.FC<DataTableProps> = ({ data, onDownload }) => {
-  if (!data || !Array.isArray(data) || data.length === 0) {
-    return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <p className="text-gray-500">No data available for display.</p>
-      </div>
-    );
-  }
-
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<keyof AnomalyData>('Time');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -58,6 +50,14 @@ const DataTable: React.FC<DataTableProps> = ({ data, onDownload }) => {
 
     return filtered;
   }, [data, searchTerm, sortField, sortDirection, selectedScoreRange]);
+
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <p className="text-gray-500">No data available for display.</p>
+      </div>
+    );
+  }
 
   const totalPages = Math.ceil(filteredAndSortedData.length / itemsPerPage);
   const paginatedData = filteredAndSortedData.slice(
